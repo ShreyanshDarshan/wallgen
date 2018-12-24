@@ -7,6 +7,7 @@ from scipy.spatial import Delaunay
 import math
 import multiprocessing
 
+
 Image.MAX_IMAGE_PIXELS = 200000000
 
 def random_gradient(side):
@@ -138,6 +139,36 @@ def calcCenter(ps):
 	mid1 = ((ps[0][0]+ps[1][0])/2, (ps[0][1]+ps[1][1])/2)
 	mid = ((mid1[0]+ps[2][0])/2, (mid1[1]+ps[2][1])/2)
 	return mid
+
+
+##################
+# EDGE DETECTION #
+##################
+def genEdges(width, height, img):
+	
+	outwidth = width-2
+	outheight = height-2	#dimensions of output image
+	
+	EdgeImg = Image.new("RGB", (outwidth, outheight), "#000000")
+	draw = ImageDraw.Draw(EdgeImg)
+	
+	edgeDetect =	[[	-1, 	-1, 	-1], 
+					[	-1, 	8, 		-1],
+					[ 	-1, 	-1, 	-1]]	#edge detect matrix
+	
+	idata = img.load() # load pixel data
+	
+	for i in range(1, outwidth+1):
+		for j in range(1, outheight+1):		#iterate over pixels of the image
+			fill = [0, 0, 0, 255]			#fill will store the color of the pixel in the output image
+			for k in range (3):
+				for l in range (3):			#iterate over the edge detect matrix
+					#print(idata[i+k-1, j+l-1])
+					for m in range(3):		#iterate over red green and blue channels
+						fill[m] += idata[i+k-1, j+l-1][m] * edgeDetect[k][l]	#applying edge detect matrix to image
+			draw.point([(i, j)], tuple(fill))	#drawing one pixel
+	
+	return EdgeImg.convert('LA')	#convert to grayscale and return image
 
 
 #################
@@ -690,7 +721,7 @@ def poly(image, points, show, outline, name):
 
 @pic.command()
 @click.argument("image", type=click.Path(exists=True, dir_okay=False))
-@click.option("--type", "-t", "shape", type=click.Choice(['square', 'hex', 'diamond', 'triangle', 'isometric']), help="choose which shape to use")
+@click.option("--type", "-t", "shape", type=click.Choice(['square', 'hex', 'diamond', 'triangle', 'isometric', 'edges']), help="choose which shape to use")
 @click.option("--percent", "-p", type=click.INT, help="Use this percentage to determine number of polygons. [1-10]")
 @click.option("--show", "-s", is_flag=True, help="open the image")
 @click.option("--outline", "-o", default=None, help="outline the shapes")
@@ -730,6 +761,8 @@ def shape(image, shape, show, outline, name, percent):
 		img = genTriangle(width, height, img, outline, pic=True, per=percent)
 	elif shape == 'isometric':
 		img = genIsometric(width, height, img, outline, pic=True, per=percent)
+	elif shape == 'edges':
+		img = genEdges(width, height, img)
 	else:
 		error = "No shape given. To see list of shapes \"wallgen pic shape --help\""
 		click.secho(error, fg='red', err=True)
